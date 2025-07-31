@@ -239,6 +239,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         ? { 
             ...project, 
             files: [...project.files, newFile],
+            photosCount: fileData.type.startsWith('image/') 
+              ? project.photosCount + 1 
+              : project.photosCount,
+            designsCount: fileData.type.includes('design') || fileData.name.toLowerCase().includes('макет') || fileData.name.toLowerCase().includes('design')
+              ? project.designsCount + 1
+              : project.designsCount,
             updatedAt: new Date()
           }
         : project
@@ -250,7 +256,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       project.id === projectId 
         ? { 
             ...project, 
-            files: project.files.filter(file => file.id !== fileId),
+            files: project.files.filter(file => {
+              if (file.id === fileId) {
+                // Уменьшаем счетчики при удалении файла
+                if (file.type.startsWith('image/')) {
+                  project.photosCount = Math.max(0, project.photosCount - 1);
+                }
+                if (file.type.includes('design') || file.name.toLowerCase().includes('макет') || file.name.toLowerCase().includes('design')) {
+                  project.designsCount = Math.max(0, project.designsCount - 1);
+                }
+                return false;
+              }
+              return true;
+            }),
             updatedAt: new Date()
           }
         : project

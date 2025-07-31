@@ -395,8 +395,9 @@ export function ProjectsList({ onProjectSelect }: { onProjectSelect?: (projectId
                   {/* Статистика и даты */}
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center space-x-4">
-                      <span className="text-gray-600">Фото: {project.photosCount}</span>
-                      <span className="text-gray-600">Макеты: {project.designsCount}</span>
+                      <span className="text-gray-600">Фото: {project.files.filter(f => f.type.startsWith('image/')).length}</span>
+                      <span className="text-gray-600">Макеты: {project.files.filter(f => f.type.includes('design') || f.name.toLowerCase().includes('макет') || f.name.toLowerCase().includes('design')).length}</span>
+                      <span className="text-gray-600">Файлов: {project.files.length}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-1 text-gray-500">

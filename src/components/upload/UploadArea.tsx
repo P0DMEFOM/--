@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Upload, X, Camera, FileText, Image, Download, Trash2 } from 'lucide-react';
+import { Upload, X, Camera, FileText, Image, Download, Trash2, Eye } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { useAuth } from '../../contexts/AuthContext';
@@ -103,6 +103,30 @@ export function UploadArea() {
       removeFileFromProject(selectedProject, fileId);
     }
   };
+
+  const handleFileDownload = (file: ProjectFile) => {
+    if (file.preview) {
+      // Для файлов с preview (изображения)
+      const link = document.createElement('a');
+      link.href = file.preview;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // Для других файлов создаем blob
+      const blob = new Blob([''], { type: file.type });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -197,7 +221,24 @@ export function UploadArea() {
       {files.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Загруженные файлы ({files.length})</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Загруженные файлы ({files.length})</CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  // Предпросмотр всех изображений
+                  const imageFiles = files.filter(f => f.preview);
+                  if (imageFiles.length > 0) {
+                    // Открываем галерею предпросмотра
+                    alert('Функция галереи будет добавлена в следующем обновлении');
+                  }
+                }}
+              >
+                <Image className="h-4 w-4 mr-2" />
+                Предпросмотр
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -207,11 +248,37 @@ export function UploadArea() {
                   <div key={file.id} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
                     <div className="flex-shrink-0">
                       {file.preview ? (
-                        <img 
-                          src={file.preview} 
-                          alt={file.name}
-                          className="w-12 h-12 object-cover rounded-lg"
-                        />
+                        <div className="relative group">
+                          <img 
+                            src={file.preview} 
+                            alt={file.name}
+                            className="w-12 h-12 object-cover rounded-lg cursor-pointer hover:opacity-75 transition-opacity"
+                            onClick={() => {
+                              // Открываем изображение в полном размере
+                              const modal = document.createElement('div');
+                              modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
+                              modal.innerHTML = `
+                                <div class="relative max-w-4xl max-h-full">
+                                  <img src="${file.preview}" alt="${file.name}" class="max-w-full max-h-full object-contain rounded-lg">
+                                  <button class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                  </button>
+                                </div>
+                              `;
+                              modal.onclick = (e) => {
+                                if (e.target === modal || e.target.closest('button')) {
+                                  document.body.removeChild(modal);
+                                }
+                              };
+                              document.body.appendChild(modal);
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all flex items-center justify-center">
+                            <Eye className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </div>
                       ) : (
                         <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
                           <FileIcon className="h-6 w-6 text-gray-500" />
@@ -270,11 +337,37 @@ export function UploadArea() {
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
                         {file.preview ? (
-                          <img 
-                            src={file.preview} 
-                            alt={file.name}
-                            className="w-12 h-12 object-cover rounded-lg"
-                          />
+                          <div className="relative group">
+                            <img 
+                              src={file.preview} 
+                              alt={file.name}
+                              className="w-12 h-12 object-cover rounded-lg cursor-pointer hover:opacity-75 transition-opacity"
+                              onClick={() => {
+                                // Открываем изображение в полном размере
+                                const modal = document.createElement('div');
+                                modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
+                                modal.innerHTML = `
+                                  <div class="relative max-w-4xl max-h-full">
+                                    <img src="${file.preview}" alt="${file.name}" class="max-w-full max-h-full object-contain rounded-lg">
+                                    <button class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75">
+                                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                      </svg>
+                                    </button>
+                                  </div>
+                                `;
+                                modal.onclick = (e) => {
+                                  if (e.target === modal || e.target.closest('button')) {
+                                    document.body.removeChild(modal);
+                                  }
+                                };
+                                document.body.appendChild(modal);
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all flex items-center justify-center">
+                              <Eye className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </div>
                         ) : (
                           <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
                             <FileIcon className="h-6 w-6 text-gray-500" />
@@ -289,7 +382,11 @@ export function UploadArea() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleFileDownload(file)}
+                      >
                         <Download className="h-4 w-4 mr-1" />
                         Скачать
                       </Button>
