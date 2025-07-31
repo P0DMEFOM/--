@@ -94,25 +94,6 @@ export function LoginForm() {
           </form>
         </Card>
 
-        <Card className="bg-blue-50 border-blue-200">
-          <h4 className="font-medium text-blue-900 mb-3">Администратор:</h4>
-          <div className="text-sm text-blue-700">
-            <p>Логин: <strong>admin</strong></p>
-            <p>Пароль: <strong>admin</strong></p>
-          </div>
-          
-          <h4 className="font-medium text-blue-900 mb-3 mt-4">Тестовые аккаунты:</h4>
-          <div className="text-sm text-blue-700 space-y-2">
-            <div>
-              <p>Фотограф - Логин: <strong>john@company.com</strong></p>
-              <p>Пароль: <strong>password123</strong></p>
-            </div>
-            <div>
-              <p>Дизайнер - Логин: <strong>jane@company.com</strong></p>
-              <p>Пароль: <strong>password123</strong></p>
-            </div>
-          </div>
-        </Card>
       </div>
     </div>
   );

@@ -252,7 +252,81 @@ export function UploadArea() {
                           <img 
                             src={file.preview} 
                             alt={file.name}
-                            className="w-12 h-12 object-cover rounded-lg cursor-pointer hover:opacity-75 transition-opacity"
+                            className="w-12 h-12 object-cover rounded-lg"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                          <FileIcon className="h-6 w-6 text-gray-500" />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">{file.name}</h4>
+                      <p className="text-sm text-gray-500">
+                        {formatFileSize(file.size)} • Загружен {file.uploadedBy.name} • {file.uploadedAt.toLocaleDateString('ru-RU')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {file.preview && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          // Открываем изображение в полном размере
+                          const modal = document.createElement('div');
+                          modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
+                          modal.innerHTML = `
+                            <div class="relative max-w-4xl max-h-full">
+                              <img src="${file.preview}" alt="${file.name}" class="max-w-full max-h-full object-contain rounded-lg">
+                              <button class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                              </button>
+                            </div>
+                          `;
+                          modal.onclick = (e) => {
+                            if (e.target === modal || e.target.closest('button')) {
+                              document.body.removeChild(modal);
+                            }
+                          };
+                          document.body.appendChild(modal);
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Просмотр
+                      </Button>
+                    )}
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleFileDownload(file)}
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Скачать
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="text-red-600 hover:text-red-700"
+                      onClick={() => removeProjectFile(file.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    )}
+  </div>
+);
+}
+
                             onClick={() => {
                               // Открываем изображение в полном размере
                               const modal = document.createElement('div');
