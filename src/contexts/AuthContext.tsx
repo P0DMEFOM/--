@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '../lib/supabase';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 import { Project, ProjectFile } from '../types/user';
 
 interface User {
   id: string;
   email: string;
-  login: string;
-  password: string;
   name: string;
   role: 'photographer' | 'designer' | 'admin';
   department?: string;
@@ -24,255 +24,538 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   register: (userData: Omit<User, 'id'> & { password: string }) => Promise<boolean>;
-  addUser: (userData: Omit<User, 'id'>) => void;
-  updateUser: (id: string, userData: Partial<User>) => void;
-  deleteUser: (id: string) => void;
-  addProject: (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateProject: (id: string, projectData: Partial<Project>) => void;
-  deleteProject: (id: string) => void;
-  addFileToProject: (projectId: string, file: Omit<ProjectFile, 'id' | 'uploadedAt'>) => void;
-  removeFileFromProject: (projectId: string, fileId: string) => void;
+  addUser: (userData: Omit<User, 'id'> & { password: string }) => Promise<void>;
+  updateUser: (id: string, userData: Partial<User>) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
+  addProject: (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateProject: (id: string, projectData: Partial<Project>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  addFileToProject: (projectId: string, file: Omit<ProjectFile, 'id' | 'uploadedAt'>) => Promise<void>;
+  removeFileFromProject: (projectId: string, fileId: string) => Promise<void>;
   isAuthenticated: boolean;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users data
-const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'admin',
-    login: 'admin',
-    password: 'admin',
-    name: 'Администратор',
-    role: 'admin',
-    department: 'Управление',
-    position: 'Системный администратор',
-    createdAt: new Date()
-  },
-  {
-    id: '2',
-    email: 'john@company.com',
-    login: 'john@company.com',
-    password: 'password123',
-    name: 'John Doe',
-    role: 'photographer',
-    department: 'Engineering',
-    position: 'Software Developer',
-    salary: 75000,
-    createdAt: new Date()
-  },
-  {
-    id: '3',
-    email: 'jane@company.com',
-    login: 'jane@company.com',
-    password: 'password123',
-    name: 'Jane Smith',
-    role: 'designer',
-    department: 'Marketing',
-    position: 'Marketing Manager',
-    salary: 65000,
-    createdAt: new Date()
-  }
-];
-
-// Mock projects data
-const mockProjects: Project[] = [
-  {
-    id: '1',
-    title: 'Свадебный альбом "Анна & Михаил"',
-    albumType: 'Свадебный альбом',
-    description: 'Создание премиального свадебного альбома для молодоженов',
-    status: 'in-progress',
-    manager: mockUsers[0], // admin
-    photographers: [mockUsers[1]], // John Doe
-    designers: [mockUsers[2]], // Jane Smith
-    deadline: new Date('2024-03-15'),
-    createdAt: new Date('2024-02-01'),
-    updatedAt: new Date('2024-02-10'),
-    photosCount: 45,
-    designsCount: 3,
-    files: []
-  },
-  {
-    id: '2',
-    title: 'Детская фотосессия "Семья Петровых"',
-    albumType: 'Детский альбом',
-    description: 'Семейная фотосессия с детьми для создания памятного альбома',
-    status: 'planning',
-    manager: mockUsers[0],
-    photographers: [mockUsers[1]],
-    designers: [],
-    deadline: new Date('2024-03-20'),
-    createdAt: new Date('2024-02-05'),
-    updatedAt: new Date('2024-02-05'),
-    photosCount: 0,
-    designsCount: 0,
-    files: []
-  },
-  {
-    id: '3',
-    title: 'Корпоративный альбом "ООО Рога и копыта"',
-    albumType: 'Корпоративный альбом',
-    description: 'Корпоративная фотосессия и создание презентационного альбома',
-    status: 'review',
-    manager: mockUsers[0],
-    photographers: [mockUsers[1]],
-    designers: [mockUsers[2]],
-    deadline: new Date('2024-02-28'),
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-02-12'),
-    photosCount: 30,
-    designsCount: 5,
-    files: []
-  }
-];
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>(mockUsers);
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
+  const [users, setUsers] = useState<User[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock authentication - in real app, this would call an API
-    const foundUser = users.find(u => u.login === email || u.email === email);
-    if (foundUser) {
-      if (foundUser.password === password) {
-        setUser(foundUser);
-        return true;
+  // Загрузка данных пользователя
+  const loadUserProfile = async (supabaseUser: SupabaseUser) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single();
+
+      if (error) throw error;
+
+      if (profile) {
+        const userData: User = {
+          id: profile.id,
+          email: profile.email,
+          name: profile.name,
+          role: profile.role,
+          department: profile.department,
+          position: profile.position,
+          salary: profile.salary,
+          phone: profile.phone,
+          telegram: profile.telegram,
+          avatar: profile.avatar,
+          createdAt: new Date(profile.created_at)
+        };
+        setUser(userData);
       }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
     }
-    return false;
   };
 
-  const logout = () => {
-    setUser(null);
+  // Загрузка всех пользователей
+  const loadUsers = async () => {
+    try {
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const usersData: User[] = profiles.map(profile => ({
+        id: profile.id,
+        email: profile.email,
+        name: profile.name,
+        role: profile.role,
+        department: profile.department,
+        position: profile.position,
+        salary: profile.salary,
+        phone: profile.phone,
+        telegram: profile.telegram,
+        avatar: profile.avatar,
+        createdAt: new Date(profile.created_at)
+      }));
+
+      setUsers(usersData);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
+
+  // Загрузка проектов
+  const loadProjects = async () => {
+    try {
+      const { data: projectsData, error } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          manager:profiles!projects_manager_id_fkey(*),
+          project_members(
+            user_id,
+            role,
+            profiles(*)
+          ),
+          project_files(*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const projects: Project[] = projectsData.map(project => {
+        const manager = project.manager ? {
+          id: project.manager.id,
+          email: project.manager.email,
+          name: project.manager.name,
+          role: project.manager.role,
+          department: project.manager.department,
+          position: project.manager.position,
+          salary: project.manager.salary,
+          phone: project.manager.phone,
+          telegram: project.manager.telegram,
+          avatar: project.manager.avatar,
+          createdAt: new Date(project.manager.created_at)
+        } : undefined;
+
+        const photographers = project.project_members
+          .filter((member: any) => member.role === 'photographer')
+          .map((member: any) => ({
+            id: member.profiles.id,
+            email: member.profiles.email,
+            name: member.profiles.name,
+            role: member.profiles.role,
+            department: member.profiles.department,
+            position: member.profiles.position,
+            salary: member.profiles.salary,
+            phone: member.profiles.phone,
+            telegram: member.profiles.telegram,
+            avatar: member.profiles.avatar,
+            createdAt: new Date(member.profiles.created_at)
+          }));
+
+        const designers = project.project_members
+          .filter((member: any) => member.role === 'designer')
+          .map((member: any) => ({
+            id: member.profiles.id,
+            email: member.profiles.email,
+            name: member.profiles.name,
+            role: member.profiles.role,
+            department: member.profiles.department,
+            position: member.profiles.position,
+            salary: member.profiles.salary,
+            phone: member.profiles.phone,
+            telegram: member.profiles.telegram,
+            avatar: member.profiles.avatar,
+            createdAt: new Date(member.profiles.created_at)
+          }));
+
+        const files: ProjectFile[] = project.project_files.map((file: any) => ({
+          id: file.id,
+          name: file.name,
+          type: file.file_type,
+          size: file.file_size,
+          preview: file.preview_url,
+          uploadedBy: users.find(u => u.id === file.uploaded_by) || {
+            id: file.uploaded_by,
+            email: '',
+            name: 'Unknown User',
+            role: 'photographer',
+            createdAt: new Date()
+          },
+          uploadedAt: new Date(file.uploaded_at)
+        }));
+
+        return {
+          id: project.id,
+          title: project.title,
+          albumType: project.album_type,
+          description: project.description,
+          status: project.status,
+          manager,
+          photographers,
+          designers,
+          deadline: new Date(project.deadline),
+          createdAt: new Date(project.created_at),
+          updatedAt: new Date(project.updated_at),
+          photosCount: files.filter(f => f.type.startsWith('image/')).length,
+          designsCount: files.filter(f => f.type.includes('design') || f.name.toLowerCase().includes('макет') || f.name.toLowerCase().includes('design')).length,
+          files
+        };
+      });
+
+      setProjects(projects);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    }
+  };
+
+  // Инициализация
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          await loadUserProfile(session.user);
+        }
+        
+        await loadUsers();
+        await loadProjects();
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await loadUserProfile(session.user);
+        await loadUsers();
+        await loadProjects();
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        await loadUserProfile(data.user);
+        await loadUsers();
+        await loadProjects();
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const register = async (userData: Omit<User, 'id'> & { password: string }): Promise<boolean> => {
-    // Mock registration - in real app, this would call an API
-    const existingUser = users.find(u => u.login === userData.login);
-    if (existingUser) {
-      return false; // User already exists
-    }
-
-    const newUser: User = {
-      id: Date.now().toString(),
-      email: userData.email,
-      login: userData.login,
-      password: userData.password,
-      name: userData.name,
-      role: userData.role,
-      department: userData.department,
-      position: userData.position,
-      salary: userData.salary,
-      phone: userData.phone,
-      telegram: userData.telegram,
-      createdAt: new Date()
-    };
-
-    setUsers(prev => [...prev, newUser]);
-    setUser(newUser);
-    return true;
-  };
-
-  const addUser = (userData: Omit<User, 'id'> & { password: string }) => {
-    const newUser: User = {
-      id: Date.now().toString(),
-      ...userData,
-      createdAt: new Date()
-    };
-    setUsers(prev => [...prev, newUser]);
-  };
-
-  const updateUser = (id: string, userData: Partial<User>) => {
-    setUsers(prev => prev.map(user => 
-      user.id === id ? { ...user, ...userData } : user
-    ));
-    
-    // Update current user if it's the same user being updated
-    if (user && user.id === id) {
-      setUser(prev => prev ? { ...prev, ...userData } : null);
-    }
-  };
-
-  const deleteUser = (id: string) => {
-    setUsers(prev => prev.filter(user => user.id !== id));
-    
-    // Logout if current user is being deleted
-    if (user && user.id === id) {
-      setUser(null);
-    }
-  };
-
-  const addProject = (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newProject: Project = {
-      ...projectData,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    setProjects(prev => [...prev, newProject]);
-  };
-
-  const updateProject = (id: string, projectData: Partial<Project>) => {
-    setProjects(prev => prev.map(project => 
-      project.id === id 
-        ? { ...project, ...projectData, updatedAt: new Date() } 
-        : project
-    ));
-  };
-
-  const deleteProject = (id: string) => {
-    setProjects(prev => prev.filter(project => project.id !== id));
-  };
-
-  const addFileToProject = (projectId: string, fileData: Omit<ProjectFile, 'id' | 'uploadedAt'>) => {
-    const newFile: ProjectFile = {
-      ...fileData,
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      uploadedAt: new Date()
-    };
-
-    setProjects(prev => prev.map(project => 
-      project.id === projectId 
-        ? { 
-            ...project, 
-            files: [...project.files, newFile],
-            photosCount: fileData.type.startsWith('image/') 
-              ? project.photosCount + 1 
-              : project.photosCount,
-            designsCount: fileData.type.includes('design') || fileData.name.toLowerCase().includes('макет') || fileData.name.toLowerCase().includes('design')
-              ? project.designsCount + 1
-              : project.designsCount,
-            updatedAt: new Date()
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            name: userData.name
           }
-        : project
-    ));
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Обновляем профиль с дополнительными данными
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            name: userData.name,
+            role: userData.role,
+            department: userData.department,
+            position: userData.position,
+            salary: userData.salary,
+            phone: userData.phone,
+            telegram: userData.telegram
+          })
+          .eq('id', data.user.id);
+
+        if (profileError) throw profileError;
+
+        await loadUsers();
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Registration error:', error);
+      return false;
+    }
   };
 
-  const removeFileFromProject = (projectId: string, fileId: string) => {
-    setProjects(prev => prev.map(project => 
-      project.id === projectId 
-        ? { 
-            ...project, 
-            files: project.files.filter(file => {
-              if (file.id === fileId) {
-                // Уменьшаем счетчики при удалении файла
-                if (file.type.startsWith('image/')) {
-                  project.photosCount = Math.max(0, project.photosCount - 1);
-                }
-                if (file.type.includes('design') || file.name.toLowerCase().includes('макет') || file.name.toLowerCase().includes('design')) {
-                  project.designsCount = Math.max(0, project.designsCount - 1);
-                }
-                return false;
-              }
-              return true;
-            }),
-            updatedAt: new Date()
-          }
-        : project
-    ));
+  const addUser = async (userData: Omit<User, 'id'> & { password: string }): Promise<void> => {
+    try {
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: userData.email,
+        password: userData.password,
+        user_metadata: {
+          name: userData.name
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            email: userData.email,
+            name: userData.name,
+            role: userData.role,
+            department: userData.department,
+            position: userData.position,
+            salary: userData.salary,
+            phone: userData.phone,
+            telegram: userData.telegram
+          });
+
+        if (profileError) throw profileError;
+        await loadUsers();
+      }
+    } catch (error) {
+      console.error('Add user error:', error);
+      throw error;
+    }
+  };
+
+  const updateUser = async (id: string, userData: Partial<User>): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: userData.name,
+          role: userData.role,
+          department: userData.department,
+          position: userData.position,
+          salary: userData.salary,
+          phone: userData.phone,
+          telegram: userData.telegram
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await loadUsers();
+      
+      if (user && user.id === id) {
+        setUser(prev => prev ? { ...prev, ...userData } : null);
+      }
+    } catch (error) {
+      console.error('Update user error:', error);
+      throw error;
+    }
+  };
+
+  const deleteUser = async (id: string): Promise<void> => {
+    try {
+      const { error } = await supabase.auth.admin.deleteUser(id);
+      if (error) throw error;
+
+      await loadUsers();
+      
+      if (user && user.id === id) {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Delete user error:', error);
+      throw error;
+    }
+  };
+
+  const addProject = async (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> => {
+    try {
+      const { data: project, error } = await supabase
+        .from('projects')
+        .insert({
+          title: projectData.title,
+          album_type: projectData.albumType,
+          description: projectData.description,
+          status: projectData.status,
+          manager_id: projectData.manager?.id,
+          deadline: projectData.deadline.toISOString().split('T')[0]
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Добавляем участников проекта
+      if (project) {
+        const members = [
+          ...projectData.photographers.map(p => ({
+            project_id: project.id,
+            user_id: p.id,
+            role: 'photographer' as const
+          })),
+          ...projectData.designers.map(d => ({
+            project_id: project.id,
+            user_id: d.id,
+            role: 'designer' as const
+          }))
+        ];
+
+        if (members.length > 0) {
+          const { error: membersError } = await supabase
+            .from('project_members')
+            .insert(members);
+
+          if (membersError) throw membersError;
+        }
+      }
+
+      await loadProjects();
+    } catch (error) {
+      console.error('Add project error:', error);
+      throw error;
+    }
+  };
+
+  const updateProject = async (id: string, projectData: Partial<Project>): Promise<void> => {
+    try {
+      const updateData: any = {};
+      
+      if (projectData.title) updateData.title = projectData.title;
+      if (projectData.albumType) updateData.album_type = projectData.albumType;
+      if (projectData.description !== undefined) updateData.description = projectData.description;
+      if (projectData.status) updateData.status = projectData.status;
+      if (projectData.manager) updateData.manager_id = projectData.manager.id;
+      if (projectData.deadline) updateData.deadline = projectData.deadline.toISOString().split('T')[0];
+
+      const { error } = await supabase
+        .from('projects')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Обновляем участников проекта если они изменились
+      if (projectData.photographers || projectData.designers) {
+        // Удаляем старых участников
+        const { error: deleteError } = await supabase
+          .from('project_members')
+          .delete()
+          .eq('project_id', id);
+
+        if (deleteError) throw deleteError;
+
+        // Добавляем новых участников
+        const members = [
+          ...(projectData.photographers || []).map(p => ({
+            project_id: id,
+            user_id: p.id,
+            role: 'photographer' as const
+          })),
+          ...(projectData.designers || []).map(d => ({
+            project_id: id,
+            user_id: d.id,
+            role: 'designer' as const
+          }))
+        ];
+
+        if (members.length > 0) {
+          const { error: membersError } = await supabase
+            .from('project_members')
+            .insert(members);
+
+          if (membersError) throw membersError;
+        }
+      }
+
+      await loadProjects();
+    } catch (error) {
+      console.error('Update project error:', error);
+      throw error;
+    }
+  };
+
+  const deleteProject = async (id: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      await loadProjects();
+    } catch (error) {
+      console.error('Delete project error:', error);
+      throw error;
+    }
+  };
+
+  const addFileToProject = async (projectId: string, fileData: Omit<ProjectFile, 'id' | 'uploadedAt'>): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('project_files')
+        .insert({
+          project_id: projectId,
+          name: fileData.name,
+          file_type: fileData.type,
+          file_size: fileData.size,
+          preview_url: fileData.preview,
+          file_url: fileData.preview || '',
+          uploaded_by: fileData.uploadedBy.id
+        });
+
+      if (error) throw error;
+      await loadProjects();
+    } catch (error) {
+      console.error('Add file error:', error);
+      throw error;
+    }
+  };
+
+  const removeFileFromProject = async (projectId: string, fileId: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('project_files')
+        .delete()
+        .eq('id', fileId);
+
+      if (error) throw error;
+      await loadProjects();
+    } catch (error) {
+      console.error('Remove file error:', error);
+      throw error;
+    }
   };
 
   const value: AuthContextType = {
@@ -290,7 +573,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     deleteProject,
     addFileToProject,
     removeFileFromProject,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    loading
   };
 
   return (

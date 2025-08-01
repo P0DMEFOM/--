@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -9,12 +13,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export interface Database {
   public: {
     Tables: {
-      users: {
+      profiles: {
         Row: {
           id: string;
           email: string;
-          login: string;
-          password_hash: string;
           name: string;
           role: 'photographer' | 'designer' | 'admin';
           department: string | null;
@@ -27,10 +29,8 @@ export interface Database {
           updated_at: string;
         };
         Insert: {
-          id?: string;
+          id: string;
           email: string;
-          login: string;
-          password_hash: string;
           name: string;
           role: 'photographer' | 'designer' | 'admin';
           department?: string | null;
@@ -45,8 +45,6 @@ export interface Database {
         Update: {
           id?: string;
           email?: string;
-          login?: string;
-          password_hash?: string;
           name?: string;
           role?: 'photographer' | 'designer' | 'admin';
           department?: string | null;
