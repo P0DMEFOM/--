@@ -13,6 +13,7 @@ interface User {
   telegram?: string;
   avatar?: string;
   createdAt: Date;
+  password?: string;
 }
 
 interface AuthContextType {
@@ -150,13 +151,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Простая проверка учетных данных
+      // Проверяем админа
       if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-        const adminUser = mockUsers[0]; // Используем первого пользователя как админа
+        const adminUser = users.find(u => u.role === 'admin') || users[0];
         setUser(adminUser);
         localStorage.setItem('currentUser', JSON.stringify(adminUser));
         return true;
       }
+      
+      // Проверяем созданных пользователей
+      const foundUser = users.find(u => u.email === email);
+      if (foundUser && foundUser.password === password) {
+        setUser(foundUser);
+        localStorage.setItem('currentUser', JSON.stringify(foundUser));
+        return true;
+      }
+      
       return false;
     } catch (error) {
       console.error('Login error:', error);
@@ -186,8 +196,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const addUser = async (userData: Omit<User, 'id'> & { password: string }): Promise<void> => {
     const newUser: User = {
-      ...userData,
       id: Math.random().toString(36).substr(2, 9),
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      department: userData.department,
+      position: userData.position,
+      salary: userData.salary,
+      phone: userData.phone,
+      telegram: userData.telegram,
+      avatar: userData.avatar,
+      password: userData.password,
       createdAt: new Date()
     };
     setUsers(prev => [...prev, newUser]);

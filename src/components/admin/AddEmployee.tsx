@@ -9,7 +9,6 @@ export function AddEmployee() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    login: '',
     phone: '',
     telegram: '',
     password: '',
@@ -38,7 +37,6 @@ export function AddEmployee() {
       await addUser({
         name: formData.name,
         email: formData.email,
-        login: formData.login,
         password: formData.password,
         phone: formData.phone,
         telegram: formData.telegram,
@@ -53,7 +51,6 @@ export function AddEmployee() {
       setFormData({
         name: '',
         email: '',
-        login: '',
         phone: '',
         telegram: '',
         password: '',
@@ -155,32 +152,18 @@ export function AddEmployee() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email *
+                    Email для входа *
                   </label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
+                    placeholder="Этот email будет использоваться для входа"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Логин для входа *
-                </label>
-                <input
-                  type="text"
-                  name="login"
-                  value={formData.login}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Логин для входа в систему"
-                  required
-                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -312,15 +295,17 @@ export function AddEmployee() {
         </Card>
 
         <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-4">
           <h4 className="font-medium text-blue-900 mb-3">Информация для входа:</h4>
           <div className="text-sm text-blue-700">
             <p>Сотрудники смогут войти в систему используя:</p>
             <ul className="list-disc list-inside mt-2 space-y-1">
-              <li><strong>Логин:</strong> тот который вы укажете в поле "Логин для входа"</li>
+              <li><strong>Email:</strong> тот который вы укажете в поле "Email для входа"</li>
               <li><strong>Пароль:</strong> тот который вы укажете в поле "Пароль"</li>
             </ul>
             <p className="mt-2 text-xs">Убедитесь, что сообщили сотруднику его данные для входа</p>
           </div>
+          </CardContent>
         </Card>
       </div>
     </div>
