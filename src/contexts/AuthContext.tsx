@@ -146,6 +146,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.removeItem('currentUser');
       }
     }
+    
+    // Загружаем сохраненных пользователей
+    const savedUsers = localStorage.getItem('users');
+    if (savedUsers) {
+      try {
+        const parsedUsers = JSON.parse(savedUsers);
+        setUsers(parsedUsers);
+      } catch (error) {
+        localStorage.removeItem('users');
+      }
+    }
+    
     setLoading(false);
   }, []);
 
@@ -160,12 +172,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       // Проверяем созданных пользователей
-      const foundUser = users.find(u => u.email === email);
-      if (foundUser && foundUser.password === password) {
+      const foundUser = users.find(u => u.email === email && u.password === password);
+      if (foundUser) {
         setUser(foundUser);
         localStorage.setItem('currentUser', JSON.stringify(foundUser));
         return true;
       }
+      
+      console.log('Login attempt failed for:', email);
+      console.log('Available users:', users.map(u => ({ email: u.email, hasPassword: !!u.password })));
       
       return false;
     } catch (error) {
@@ -209,11 +224,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       password: userData.password,
       createdAt: new Date()
     };
+    
+    console.log('Adding new user:', { email: newUser.email, hasPassword: !!newUser.password });
     setUsers(prev => [...prev, newUser]);
+    
+    // Сохраняем пользователей в localStorage для постоянства
+    const updatedUsers = [...users, newUser];
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
   };
 
   const updateUser = async (id: string, userData: Partial<User>): Promise<void> => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...userData } : u));
+    const updatedUsers = users.map(u => u.id === id ? { ...u, ...userData } : u);
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
     
     if (user && user.id === id) {
       const updatedUser = { ...user, ...userData };
@@ -223,7 +246,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const deleteUser = async (id: string): Promise<void> => {
-    setUsers(prev => prev.filter(u => u.id !== id));
+    const updatedUsers = users.filter(u => u.id !== id);
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
     
     if (user && user.id === id) {
       setUser(null);
