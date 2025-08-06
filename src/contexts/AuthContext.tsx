@@ -152,7 +152,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (savedUsers) {
       try {
         const parsedUsers = JSON.parse(savedUsers);
-        setUsers(parsedUsers);
+        // Преобразуем строки дат обратно в объекты Date
+        const usersWithDates = parsedUsers.map((user: any) => ({
+          ...user,
+          createdAt: new Date(user.createdAt)
+        }));
+        setUsers(usersWithDates);
+        const usersWithDates = parsedUsers.map((user: any) => ({
+          ...user,
+          createdAt: new Date(user.createdAt)
+        }));
+        setUsers(usersWithDates);
       } catch (error) {
         localStorage.removeItem('users');
       }
