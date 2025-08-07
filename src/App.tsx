@@ -61,11 +61,6 @@ function AppContent() {
         return <EmployeesList />;
       case 'salary':
         return <SalaryManagement />;
-      case 'upload':
-      case 'gallery':
-      case 'design':
-      case 'templates':
-        return <UploadArea />;
       case 'calendar':
         return <Calendar />;
       case 'script':

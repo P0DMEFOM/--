@@ -26,17 +26,11 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     const baseItems = [
       { id: 'dashboard', label: 'Главная', icon: Home },
       { id: 'projects', label: 'Проекты', icon: FolderOpen },
-      { id: 'upload', label: 'Загрузить фото', icon: Upload },
     ];
 
     const roleSpecificItems = {
-      photographer: [
-        { id: 'gallery', label: 'Моя галерея', icon: Camera },
-      ],
-      designer: [
-        { id: 'design', label: 'Дизайн-макеты', icon: Palette },
-        { id: 'templates', label: 'Шаблоны', icon: Upload },
-      ],
+      photographer: [],
+      designer: [],
       admin: [
         { id: 'add-employee', label: 'Добавить сотрудника', icon: UserPlus },
       ]
