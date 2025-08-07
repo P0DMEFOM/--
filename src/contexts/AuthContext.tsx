@@ -168,8 +168,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('=== ПОПЫТКА ВХОДА ===');
+      console.log('Введенный email:', email);
+      console.log('Введенный пароль:', password);
+      console.log('Всего пользователей в системе:', users.length);
+      
+      // Показываем всех пользователей с их данными для входа
+      console.log('Список всех пользователей:');
+      users.forEach((u, index) => {
+        console.log(`${index + 1}. Имя: ${u.name}`);
+        console.log(`   Email: "${u.email}"`);
+        console.log(`   Пароль: "${u.password || 'НЕТ ПАРОЛЯ'}"`);
+        console.log(`   Роль: ${u.role}`);
+        console.log('   ---');
+      });
+
       // Проверяем админа
       if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
+        console.log('✅ Вход как админ');
         const adminUser = users.find(u => u.role === 'admin') || users[0];
         setUser(adminUser);
         localStorage.setItem('currentUser', JSON.stringify(adminUser));
@@ -177,7 +193,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       // Проверяем созданных пользователей
+      console.log('Ищем пользователя среди созданных...');
       const foundUser = users.find(u => u.email === email && u.password === password);
+      
+      if (foundUser) {
+        console.log('✅ Пользователь найден:', foundUser.name);
+        setUser(foundUser);
+        localStorage.setItem('currentUser', JSON.stringify(foundUser));
+        return true;
+      } else {
+        console.log('❌ Пользователь не найден');
+        console.log('Проверяем точные совпадения:');
+        users.forEach(u => {
+          const emailMatch = u.email === email;
+          const passwordMatch = u.password === password;
+          console.log(`Пользователь ${u.name}:`);
+          console.log(`  Email совпадает: ${emailMatch} ("${u.email}" === "${email}")`);
+          console.log(`  Пароль совпадает: ${passwordMatch} ("${u.password}" === "${password}")`);
+        });
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Ошибка при входе:', error);
+      return false;
+    }
+  };
       if (foundUser) {
         setUser(foundUser);
         localStorage.setItem('currentUser', JSON.stringify(foundUser));
@@ -230,12 +271,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       createdAt: new Date()
     };
     
-    console.log('Adding new user:', { email: newUser.email, hasPassword: !!newUser.password });
+    console.log('=== СОЗДАНИЕ НОВОГО ПОЛЬЗОВАТЕЛЯ ===');
+    console.log('Имя:', newUser.name);
+    console.log('Email для входа:', newUser.email);
+    console.log('Пароль для входа:', newUser.password);
+    console.log('Роль:', newUser.role);
+    console.log('ID:', newUser.id);
+    
     setUsers(prev => [...prev, newUser]);
     
     // Сохраняем пользователей в localStorage для постоянства
     const updatedUsers = [...users, newUser];
     localStorage.setItem('users', JSON.stringify(updatedUsers));
+    
+    console.log('✅ Пользователь сохранен в localStorage');
+    console.log('Общее количество пользователей:', updatedUsers.length);
   };
 
   const updateUser = async (id: string, userData: Partial<User>): Promise<void> => {
