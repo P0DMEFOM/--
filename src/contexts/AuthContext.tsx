@@ -219,21 +219,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return false;
     }
   };
-      if (foundUser) {
-        setUser(foundUser);
-        localStorage.setItem('currentUser', JSON.stringify(foundUser));
-        return true;
-      }
-      
-      console.log('Login attempt failed for:', email);
-      console.log('Available users:', users.map(u => ({ email: u.email, hasPassword: !!u.password })));
-      
-      return false;
-    } catch (error) {
-      console.error('Login error:', error);
-      return false;
-    }
-  };
 
   const logout = async () => {
     setUser(null);
